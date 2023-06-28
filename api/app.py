@@ -13,6 +13,8 @@ app.users = {
 app.id_count = 2
 app.tweets = []
 
+# default json encoder는 set을 JSON으로 변환할 수 없음
+# set을 list로 변환하여 json으로 변환 가능하도록 처리
 class CustomJSONEncoder(JSONEncoder):
     def default(self, obj):
         if isinstance(obj, set):
@@ -84,3 +86,17 @@ def unfollow():
     # 없는 값 삭제 시도 시 무시
     user.setdefault('follow', set()).discard(user_id_to_unfollow)
     return jsonify(user)
+
+@app.route("/timeline/<int:user_id>", methods=['GET'])
+def timeline(user_id):
+    if user_id not in app.users:
+        return '사용자가 존재하지 않습니다', 400
+    
+    follow_list = app.users[user_id].get('follow', set()) # 딕셔너리 get: 키가 없을 경우 디폴트값 대신 가져옴
+    follow_list.add(user_id)
+    timeline = [tweet for tweet in app.tweets if tweet['user_id'] in follow_list]
+    
+    return jsonify({
+        'user_id': user_id,
+        'timeline': timeline
+    })
