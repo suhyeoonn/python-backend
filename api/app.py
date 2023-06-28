@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, current_app
 from flask.json import JSONEncoder
 from sqlalchemy import create_engine, text
 
@@ -20,29 +20,51 @@ def create_app(test_config = None):
     else:
         app.config.update(test_config)
     
-    database = create_engine(app.config['DB_URL'], encoding = 'utf-8', max_overflow = 0)
+    database = create_engine(app.config['DB_URL'], echo=True)
     app.database = database
 
     @app.route("/ping", methods=['GET'])
     def ping():
         return "pong"
 
-    app.users = {
-        1: {'name': 'elly', 'email': 'elly@abc.com', 'password': '1234', 'id': 1}
-    }
-    app.id_count = 2
-    app.tweets = []
-
     # 회원 가입 API
     @app.route("/sign-up", methods=['POST'])
     def sign_up():
         new_user = request.json
-        new_user["id"] = app.id_count
-        app.users[app.id_count] = new_user
-        app.id_count = app.id_count + 1
+        new_user_id = app.database.execute(text("""
+            INSERT INTO users(
+                name,
+                email,
+                profile,
+                hashed_password
+            ) VALUES (
+                :name,
+                :email,
+                :profile,
+                :password
+            )
+        """), new_user).lastrowid
 
-        print(app.users)
-        return jsonify(new_user)
+        row = current_app.database.execute(text("""
+            SELECT
+                id,
+                name,
+                email,
+                profile
+            FROM users
+            WHERE id = :user_id
+        """), {
+            'user_id': new_user_id
+        }).fetchone()
+
+        created_user = {
+            'id':row['id'],
+            'name': row['name'],
+            'email': row['email'],
+            'profile': row['profile']
+        } if row else None
+
+        return jsonify(created_user)
 
     # 트윗 글 올리기 API
     @app.route("/tweet", methods=['POST'])
