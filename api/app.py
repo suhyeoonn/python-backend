@@ -12,6 +12,86 @@ class CustomJSONEncoder(JSONEncoder):
         return JSONEncoder.default(self, obj)
     
 
+# current_app: create_app 함수에서 생성한 app 변수를 create_app함수 외부에서도 쓸 수 있게 해준다
+def insert_user(new_user):
+    new_id = current_app.database.execute(text("""
+            INSERT INTO users(
+                name,
+                email,
+                profile,
+                hashed_password
+            ) VALUES (
+                :name,
+                :email,
+                :profile,
+                :password
+            )
+        """), new_user).lastrowid
+    return new_id
+
+def get_user(user_id):
+    user = current_app.database.execute(text("""
+            SELECT
+                id,
+                name,
+                email,
+                profile
+            FROM users
+            WHERE id = :user_id
+        """), {
+            'user_id': user_id
+        }).fetchone()
+    
+    return  {
+            'id':user['id'],
+            'name': user['name'],
+            'email': user['email'],
+            'profile': user['profile']
+        } if user else None
+
+def insert_tweet(user_tweet):
+    return current_app.database.execute(text("""
+            INSERT INTO tweets(
+                user_id,
+                tweet
+            ) VALUES (
+                :id,
+                :tweet
+            )
+        """), user_tweet).rowcount
+
+def insert_follow(user_follow):
+    return current_app.database.execute(text("""
+            INSERT INTO users_follow_list(
+                user_id,
+                follow_user_id
+            ) VALUES (
+                :id,
+                :follow
+            )
+        """), user_follow).rowcount    
+
+def delete_follow(user_unfollow):
+    return current_app.database.execute(text("""
+            DELETE FROM users_follow_list
+            WHERE user_id = :id AND follow_user_id = :unfollow
+        """), user_unfollow).rowcount 
+
+def get_timeline(user_id):
+    rows = current_app.database.execute(text("""
+            select t.user_id, t.tweet
+            from tweets t
+            left join users_follow_list ufl on ufl.user_id = :user_id
+            where t.user_id = :user_id or t.user_id = ufl.follow_user_id
+        """), {
+            'user_id': user_id
+        }).fetchall()
+
+    return [{
+        'user_id': row['user_id'],
+        'tweet': row['tweet']
+    } for row in rows]
+
 def create_app(test_config = None):
     app = Flask(__name__)
 
@@ -31,38 +111,9 @@ def create_app(test_config = None):
     @app.route("/sign-up", methods=['POST'])
     def sign_up():
         new_user = request.json
-        new_user_id = app.database.execute(text("""
-            INSERT INTO users(
-                name,
-                email,
-                profile,
-                hashed_password
-            ) VALUES (
-                :name,
-                :email,
-                :profile,
-                :password
-            )
-        """), new_user).lastrowid
+        new_user_id = insert_user(new_user)
 
-        row = current_app.database.execute(text("""
-            SELECT
-                id,
-                name,
-                email,
-                profile
-            FROM users
-            WHERE id = :user_id
-        """), {
-            'user_id': new_user_id
-        }).fetchone()
-
-        created_user = {
-            'id':row['id'],
-            'name': row['name'],
-            'email': row['email'],
-            'profile': row['profile']
-        } if row else None
+        created_user = get_user(new_user_id)
 
         return jsonify(created_user)
 
@@ -71,20 +122,11 @@ def create_app(test_config = None):
     def tweet():
         user_tweet = request.json
         tweet = user_tweet['tweet']
-        print(user_tweet)
 
         if len(tweet) > 300:
             return '300자를 초과했습니다', 400
         
-        app.database.execute(text("""
-            INSERT INTO tweets(
-                user_id,
-                tweet
-            ) VALUES (
-                :id,
-                :tweet
-            )
-        """), user_tweet)
+        insert_tweet(user_tweet)
 
         return '', 200
 
@@ -92,54 +134,22 @@ def create_app(test_config = None):
     @app.route("/follow", methods=['POST'])
     def follow():
         payload = request.json
-        user_id = int(payload['id'])
-        user_id_to_follow = int(payload['follow'])
+        insert_follow(payload)
 
-        if user_id not in app.users:
-            return 'id 사용자가 존재하지 않습니다', 400
-        
-        if user_id_to_follow not in app.users:
-            return 'follow 사용자가 존재하지 않습니다', 400
-
-        user = app.users[user_id]
-        # follow 키 없으면 생성
-        user.setdefault('follow', set()).add(user_id_to_follow)
-        print(user)
-        return jsonify(user)
+        return '', 200
 
     @app.route("/unfollow", methods=['POST'])
     def unfollow():
         payload = request.json
-        user_id = int(payload['id'])
-        user_id_to_unfollow = int(payload['unfollow'])
-
-        if user_id not in app.users or user_id_to_unfollow not in app.users:
-            return '사용자가 존재하지 않습니다', 400
+        delete_follow(payload)
         
-        user = app.users[user_id]
-        # 없는 값 삭제 시도 시 무시
-        user.setdefault('follow', set()).discard(user_id_to_unfollow)
-        return jsonify(user)
+        return '', 200
 
     @app.route("/timeline/<int:user_id>", methods=['GET'])
     def timeline(user_id):
-        rows = app.database.execute(text("""
-            select t.user_id, t.tweet
-            from tweets t
-            left join users_follow_list ufl on ufl.user_id = :user_id
-            where t.user_id = :user_id or t.user_id = ufl.follow_user_id
-        """), {
-            'user_id': user_id
-        }).fetchall()
-
-        timeline = [{
-            'user_id': row['user_id'],
-            'tweet': row['tweet']
-        } for row in rows]
-
         return jsonify({
             'user_id': user_id,
-            'timeline': timeline
+            'timeline': get_timeline(user_id)
         })
     
     return app
