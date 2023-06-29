@@ -123,13 +123,20 @@ def create_app(test_config = None):
 
     @app.route("/timeline/<int:user_id>", methods=['GET'])
     def timeline(user_id):
-        if user_id not in app.users:
-            return '사용자가 존재하지 않습니다', 400
-        
-        follow_list = app.users[user_id].get('follow', set()) # 딕셔너리 get: 키가 없을 경우 디폴트값 대신 가져옴
-        follow_list.add(user_id)
-        timeline = [tweet for tweet in app.tweets if tweet['user_id'] in follow_list]
-        
+        rows = app.database.execute(text("""
+            select t.user_id, t.tweet
+            from tweets t
+            left join users_follow_list ufl on ufl.user_id = :user_id
+            where t.user_id = :user_id or t.user_id = ufl.follow_user_id
+        """), {
+            'user_id': user_id
+        }).fetchall()
+
+        timeline = [{
+            'user_id': row['user_id'],
+            'tweet': row['tweet']
+        } for row in rows]
+
         return jsonify({
             'user_id': user_id,
             'timeline': timeline
