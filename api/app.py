@@ -1,7 +1,9 @@
+from datetime   import datetime, timedelta
 from flask import Flask, jsonify, request, current_app
 from flask.json import JSONEncoder
 from sqlalchemy import create_engine, text
 import bcrypt
+import jwt
 
 # default json encoder는 set을 JSON으로 변환할 수 없음
 # set을 list로 변환하여 json으로 변환 가능하도록 처리
@@ -93,6 +95,15 @@ def get_timeline(user_id):
         'tweet': row['tweet']
     } for row in rows]
 
+def check_user(email):
+    return current_app.database.execute(text("""
+            SELECT
+                id,
+                hashed_password
+            FROM users
+            WHERE email = :email
+        """), {'email': email}).fetchone()
+
 def create_app(test_config = None):
     app = Flask(__name__)
 
@@ -118,6 +129,32 @@ def create_app(test_config = None):
         created_user = get_user(new_user_id)
 
         return jsonify(created_user)
+    
+    # 로그인
+    @app.route("/login", methods=['POST'])
+    def login():
+        credential = request.json
+        row = check_user(credential['email'])
+
+        password = credential['password'] 
+
+        if row and bcrypt.checkpw(password.encode('UTF-8'), row['hashed_password'].encode('UTF-8')):
+            user_id = row['id']
+            payload = {
+                'user_id': user_id,
+                'exp': datetime.utcnow() + timedelta(seconds = 60 * 60 * 24)
+            }
+
+            token = jwt.encode(payload, app.config['JWT_SECRET_KEY'], 'HS256')
+            print(token)
+
+            return jsonify({
+                'access_token' : token
+            })
+        else :
+            return '', 401
+        
+
 
     # 트윗 글 올리기 API
     @app.route("/tweet", methods=['POST'])
