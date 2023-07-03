@@ -1,58 +1,26 @@
+import config
 from datetime   import datetime, timedelta
 from functools import wraps
 from flask import Flask, jsonify, request, current_app, Response, g
-from flask.json import JSONEncoder
+
 from sqlalchemy import create_engine, text
-import bcrypt
 import jwt
 from flask_cors import CORS
 
-# default json encoder는 set을 JSON으로 변환할 수 없음
-# set을 list로 변환하여 json으로 변환 가능하도록 처리
-class CustomJSONEncoder(JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, set):
-            return list(obj)
-        
-        return JSONEncoder.default(self, obj)
+from model import UserDao
+from service import UserService
+from view import create_endpoints
+
+class Service:
+    pass
+
+
     
 
 # current_app: create_app 함수에서 생성한 app 변수를 create_app함수 외부에서도 쓸 수 있게 해준다
-def insert_user(new_user):
-    new_id = current_app.database.execute(text("""
-            INSERT INTO users(
-                name,
-                email,
-                profile,
-                hashed_password
-            ) VALUES (
-                :name,
-                :email,
-                :profile,
-                :password
-            )
-        """), new_user).lastrowid
-    return new_id
 
-def get_user(user_id):
-    user = current_app.database.execute(text("""
-            SELECT
-                id,
-                name,
-                email,
-                profile
-            FROM users
-            WHERE id = :user_id
-        """), {
-            'user_id': user_id
-        }).fetchone()
-    
-    return  {
-            'id':user['id'],
-            'name': user['name'],
-            'email': user['email'],
-            'profile': user['profile']
-        } if user else None
+
+
 
 def insert_tweet(user_tweet):
     return current_app.database.execute(text("""
@@ -138,22 +106,18 @@ def create_app(test_config = None):
         app.config.update(test_config)
     
     database = create_engine(app.config['DB_URL'], echo=True)
+
+    # model
+    user_dao = UserDao(database)
+
+    # service
+    services = Service
+    services.user_service = UserService(user_dao, config)
     app.database = database
 
-    @app.route("/ping", methods=['GET'])
-    def ping():
-        return "pong"
-
-    # 회원 가입 API
-    @app.route("/sign-up", methods=['POST'])
-    def sign_up():
-        new_user = request.json
-        new_user['password'] = bcrypt.hashpw(new_user['password'].encode('UTF-8'), bcrypt.gensalt())
-        new_user_id = insert_user(new_user)
-
-        created_user = get_user(new_user_id)
-
-        return jsonify(created_user)
+    # create endpoints
+    create_endpoints(app, services)
+    
     
     # 로그인
     @app.route("/login", methods=['POST'])
