@@ -65,14 +65,6 @@ def get_timeline(user_id):
         'tweet': row['tweet']
     } for row in rows]
 
-def check_user(email):
-    return current_app.database.execute(text("""
-            SELECT
-                id,
-                hashed_password
-            FROM users
-            WHERE email = :email
-        """), {'email': email}).fetchone()
 
 def login_required(f):
     @wraps(f)
@@ -119,28 +111,7 @@ def create_app(test_config = None):
     create_endpoints(app, services)
     
     
-    # 로그인
-    @app.route("/login", methods=['POST'])
-    def login():
-        credential = request.json
-        row = check_user(credential['email'])
-
-        password = credential['password'] 
-
-        if row and bcrypt.checkpw(password.encode('UTF-8'), row['hashed_password'].encode('UTF-8')):
-            user_id = row['id']
-            payload = {
-                'user_id': user_id,
-                'exp': datetime.utcnow() + timedelta(seconds = 60 * 60 * 24)
-            }
-
-            token = jwt.encode(payload, app.config['JWT_SECRET_KEY'], 'HS256')
-
-            return jsonify({
-                'access_token' : token
-            })
-        else :
-            return '', 401
+    
         
 
 

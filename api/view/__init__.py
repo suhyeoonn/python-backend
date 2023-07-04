@@ -26,3 +26,18 @@ def create_endpoints(app, services):
         created_user = user_service.create_new_user(new_user)
 
         return jsonify(created_user)
+    
+    # 로그인
+    @app.route("/login", methods=['POST'])
+    def login():
+        credential = request.json
+        authorized = user_service.login(credential)
+        if authorized:
+            user = user_service.get_user_id_and_password(credential['email'])
+            token = user_service.create_token(user["id"])
+
+            return jsonify({
+                'access_token' : token
+            })
+        else :
+            return '', 401

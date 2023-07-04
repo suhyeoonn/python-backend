@@ -38,3 +38,12 @@ class UserDao:
             'email': user['email'],
             'profile': user['profile']
         } if user else None
+    
+    def get_user_id_and_password(self, email):
+        return self.db.execute(text("""
+                SELECT
+                    id,
+                    hashed_password
+                FROM users
+                WHERE email = :email
+            """), {'email': email}).fetchone()
