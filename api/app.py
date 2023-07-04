@@ -1,10 +1,8 @@
 import config
-from datetime   import datetime, timedelta
-from functools import wraps
+
 from flask import Flask, jsonify, request, current_app, Response, g
 
 from sqlalchemy import create_engine, text
-import jwt
 from flask_cors import CORS
 
 from model import UserDao
@@ -33,22 +31,6 @@ def insert_tweet(user_tweet):
             )
         """), user_tweet).rowcount
 
-def insert_follow(user_follow):
-    return current_app.database.execute(text("""
-            INSERT INTO users_follow_list(
-                user_id,
-                follow_user_id
-            ) VALUES (
-                :id,
-                :follow
-            )
-        """), user_follow).rowcount    
-
-def delete_follow(user_unfollow):
-    return current_app.database.execute(text("""
-            DELETE FROM users_follow_list
-            WHERE user_id = :id AND follow_user_id = :unfollow
-        """), user_unfollow).rowcount 
 
 def get_timeline(user_id):
     rows = current_app.database.execute(text("""
@@ -65,27 +47,6 @@ def get_timeline(user_id):
         'tweet': row['tweet']
     } for row in rows]
 
-
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        access_token = request.headers.get('Authorization')
-        if access_token is not None:
-            try:
-                payload = jwt.decode(access_token, current_app.config['JWT_SECRET_KEY'], 'HS256')
-            except jwt.InvalidTokenError:
-                payload = None
-
-            if payload is None: return Response(status=401)
-
-            user_id = payload['user_id']
-            g.user_id = user_id
-            g.user = get_user(user_id) if user_id else None
-        else:
-            return Response(status = 401)
-        
-        return f(*args, **kwargs)
-    return decorated_function
 
 def create_app(test_config = None):
     app = Flask(__name__)
@@ -115,47 +76,31 @@ def create_app(test_config = None):
         
 
 
-    # 트윗 글 올리기 API
-    @app.route("/tweet", methods=['POST'])
-    @login_required
-    def tweet():
-        user_tweet = request.json
-        user_tweet['id'] = g.user_id
-        tweet = user_tweet['tweet']
+    # # 트윗 글 올리기 API
+    # @app.route("/tweet", methods=['POST'])
+    # @login_required
+    # def tweet():
+    #     user_tweet = request.json
+    #     user_tweet['id'] = g.user_id
+    #     tweet = user_tweet['tweet']
 
-        if len(tweet) > 300:
-            return '300자를 초과했습니다', 400
+    #     if len(tweet) > 300:
+    #         return '300자를 초과했습니다', 400
         
-        insert_tweet(user_tweet)
+    #     insert_tweet(user_tweet)
 
-        return '', 200
+    #     return '', 200
 
-    # 팔로우 API
-    @app.route("/follow", methods=['POST'])
-    @login_required
-    def follow():
-        payload = request.json
-        insert_follow(payload)
-
-        return '', 200
-
-    @app.route("/unfollow", methods=['POST'])
-    @login_required
-    def unfollow():
-        payload = request.json
-        delete_follow(payload)
-        
-        return '', 200
     
-    @app.route("/timeline", methods=['GET'])
-    @login_required
-    def timeline():
-        user_id = g.user_id
+    # @app.route("/timeline", methods=['GET'])
+    # @login_required
+    # def timeline():
+    #     user_id = g.user_id
 
-        return jsonify({
-            'user_id': user_id,
-            'timeline': get_timeline(user_id)
-        })
+    #     return jsonify({
+    #         'user_id': user_id,
+    #         'timeline': get_timeline(user_id)
+    #     })
     
     return app
 

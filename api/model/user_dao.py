@@ -47,3 +47,20 @@ class UserDao:
                 FROM users
                 WHERE email = :email
             """), {'email': email}).fetchone()
+    
+    def insert_follow(self, user_follow):
+        return self.db.execute(text("""
+            INSERT INTO users_follow_list(
+                user_id,
+                follow_user_id
+            ) VALUES (
+                :id,
+                :follow
+            )
+        """), user_follow).rowcount    
+
+    def delete_follow(self, user_unfollow):
+        return self.db.execute(text("""
+            DELETE FROM users_follow_list
+            WHERE user_id = :id AND follow_user_id = :unfollow
+        """), user_unfollow).rowcount 

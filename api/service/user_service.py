@@ -30,4 +30,10 @@ class UserService:
         }
 
         return jwt.encode(payload, self.config.JWT_SECRET_KEY, 'HS256')
+    
+    def follow(self, paylod):
+        self.user_dao.insert_follow(paylod)
+
+    def unfollow(self, payload):
+        self.user_dao.delete_follow(payload)
 
