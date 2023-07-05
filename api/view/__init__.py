@@ -36,6 +36,7 @@ def create_endpoints(app, services):
     app.json_encoder = CustomJSONEncoder
 
     user_service = services.user_service
+    tweet_service = services.tweet_service
 
     @app.route("/ping", methods=['GET'])
     def ping():
@@ -79,4 +80,29 @@ def create_endpoints(app, services):
         payload = request.json
         user_service.unfollow(payload)
         
+        return '', 200
+
+    @app.route("/timeline", methods=['GET'])
+    @login_required
+    def timeline():
+        user_id = g.user_id
+
+        return jsonify({
+            'user_id': user_id,
+            'timeline': tweet_service.get_timeline(user_id)
+        })
+    
+    # 트윗 글 올리기 API
+    @app.route("/tweet", methods=['POST'])
+    @login_required
+    def tweet():
+        user_tweet = request.json
+        user_tweet['id'] = g.user_id
+        tweet = user_tweet['tweet']
+
+        if len(tweet) > 300:
+            return '300자를 초과했습니다', 400
+        
+        tweet_service.insert_tweet(user_tweet)
+
         return '', 200
