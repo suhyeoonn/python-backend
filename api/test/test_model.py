@@ -1,4 +1,3 @@
-import crypt
 import config
 from model import UserDao, TweetDao
 from sqlalchemy import create_engine, text
