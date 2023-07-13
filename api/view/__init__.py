@@ -3,6 +3,7 @@ from flask.json import JSONEncoder
 from functools import wraps
 import jwt
 from flask import Flask, jsonify, request, current_app, Response, g
+from werkzeug.utils import secure_filename
 
 # default json encoder는 set을 JSON으로 변환할 수 없음
 # set을 list로 변환하여 json으로 변환 가능하도록 처리
@@ -121,7 +122,17 @@ def create_endpoints(app, services):
         if profile_pic.filename == '':
             return 'File is missing', 404
         
-        filename = source_filename(profile_pic.filename)
+        filename = secure_filename(profile_pic.filename)
         user_service.save_profile_picture(profile_pic, filename, user_id)
 
         return '', 200
+    
+    # 파일 보기
+    @app.route('/profile-picture/<int:user_id>', methods=['GET'])
+    def get_profile_picture(user_id):
+        profile_picture = user_service.get_profile_picture(user_id)
+
+        if profile_picture:
+            return send_file(profile_picture)
+        else:
+            return '', 404

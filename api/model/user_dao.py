@@ -74,3 +74,14 @@ class UserDao:
             'user_id': user_id,
             'profile_pic_path': profile_pic_path
         }).rowcount
+
+    def get_profile_picture(self, user_id):
+        row = self.db.execute(text("""
+            SELECT profile_picture
+            FROM users
+            WHERE id = :user_id
+        """), {
+            'user_id': user_id
+        }).fetchone()
+
+        return row['profile_picture'] if row else None
