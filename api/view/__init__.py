@@ -2,7 +2,7 @@ from flask import jsonify, request
 from flask.json import JSONEncoder
 from functools import wraps
 import jwt
-from flask import Flask, jsonify, request, current_app, Response, g
+from flask import Flask, jsonify, request, current_app, Response, g, send_file
 from werkzeug.utils import secure_filename
 
 # default json encoder는 set을 JSON으로 변환할 수 없음
