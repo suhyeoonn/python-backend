@@ -106,3 +106,22 @@ def create_endpoints(app, services):
         tweet_service.insert_tweet(user_tweet)
 
         return '', 200
+    
+    # 파일 업로드
+    @app.route('/profile-picture', methods=['POST'])
+    @login_required
+    def upload_profile_picture():
+        user_id = g.user_id
+
+        if 'profile_pic' not in request.files:
+            return 'File is missing', 404
+        
+        profile_pic = request.files['profile_pic']
+
+        if profile_pic.filename == '':
+            return 'File is missing', 404
+        
+        filename = source_filename(profile_pic.filename)
+        user_service.save_profile_picture(profile_pic, filename, user_id)
+
+        return '', 200

@@ -64,3 +64,13 @@ class UserDao:
             DELETE FROM users_follow_list
             WHERE user_id = :id AND follow_user_id = :unfollow
         """), user_unfollow).rowcount 
+    
+    def save_profile_picture(self, profile_pic_path, user_id):
+        return self.db.execute(text("""
+            UPDATE users
+            SET profile_picture = :profile_pic_path
+            WHERE id = :user_id
+        """), {
+            'user_id': user_id,
+            'profile_pic_path': profile_pic_path
+        }).rowcount
