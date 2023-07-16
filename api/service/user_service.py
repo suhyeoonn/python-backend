@@ -2,11 +2,13 @@ import bcrypt
 from datetime   import datetime, timedelta
 import jwt
 import os
+import boto3
 
 class UserService:
-    def __init__(self, user_dao, config):
+    def __init__(self, user_dao, config, s3_client):
         self.user_dao = user_dao
         self.config = config
+        self.s3       = s3_client
     
     def create_new_user(self, new_user):
         new_user['password'] = bcrypt.hashpw(new_user['password'].encode('UTF-8'), bcrypt.gensalt())
@@ -39,10 +41,15 @@ class UserService:
         self.user_dao.delete_follow(payload)
 
     def save_profile_picture(self, picture, filename, user_id):
-        profile_pic_path_and_name = os.path.join(self.config.UPLOAD_DIRECTORY, filename)
-        picture.save(profile_pic_path_and_name)
+        self.s3.upload_fileobj(
+            picture,
+            self.config.S3_BUCKET,
+            filename
+        )
 
-        return self.user_dao.save_profile_picture(profile_pic_path_and_name, user_id)
+        image_url = f"{self.config.S3_BUCKET_URL}{filename}"
+
+        return self.user_dao.save_profile_picture(image_url, user_id)
     
     def get_profile_picture(self, user_id):
         return self.user_dao.get_profile_picture(user_id)

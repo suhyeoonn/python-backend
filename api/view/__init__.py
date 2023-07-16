@@ -133,6 +133,6 @@ def create_endpoints(app, services):
         profile_picture = user_service.get_profile_picture(user_id)
 
         if profile_picture:
-            return send_file(profile_picture)
+            return jsonify({'img_url': profile_picture})
         else:
             return '', 404
