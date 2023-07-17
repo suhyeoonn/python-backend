@@ -99,3 +99,17 @@ def test_insert_unfollow(user_dao):
     follow_list = get_follow_list(11)
 
     assert follow_list == []
+
+def test_save_and_get_profile_picture(user_dao):
+    user_id = 1
+    # 저장한게 없으니 None이 나와야 한다
+    user_profile_picture = user_dao.get_profile_picture(user_id)
+    assert user_profile_picture is None
+
+    # 파일 저장
+    expected_profile_picture = "s3://python-backend/KakaoTalk_Photo_2023-05-24-06-31-12_002.jpeg"
+    user_dao.save_profile_picture(expected_profile_picture, user_id)
+
+    # 저장된 값과 기대값 비교
+    actual_profile_picture = user_dao.get_profile_picture(user_id)
+    assert expected_profile_picture == actual_profile_picture

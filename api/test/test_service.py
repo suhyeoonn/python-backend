@@ -4,12 +4,14 @@ from service import UserService
 from sqlalchemy import create_engine, text
 import pytest
 import bcrypt
+from unittest   import mock
 
 database = create_engine(config.test_config['DB_URL'], echo=True)
 
 @pytest.fixture
 def user_service():
-    return UserService(UserDao(database), config.test_config)
+    mock_s3_client = mock.Mock()
+    return UserService(UserDao(database), config.test_config, mock_s3_client)
 
 def setup_function():
     #create test user
@@ -83,3 +85,15 @@ def test_create_new_user(user_service):
         'profile': new_user['profile'],
         'email': new_user['email'],
     }
+
+def test_save_and_get_profile_picture(user_service):
+    user_id = 1
+    user_profile_picture = user_service.get_profile_picture(user_id)
+    assert user_profile_picture is None
+
+    test_pic = mock.Mock()
+    filename = "test.png"
+    user_service.save_profile_picture(test_pic, filename, user_id)
+
+    acturl_profile_picture = user_service.get_profile_picture(user_id)
+    assert acturl_profile_picture == "https://s3.ap-northeast-2.amazonaws.com/test/test.png"

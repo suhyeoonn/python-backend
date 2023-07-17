@@ -4,11 +4,16 @@ from app import create_app
 from sqlalchemy import create_engine, text
 import pytest
 import bcrypt
+from unittest import mock
+import io
 
 database = create_engine(config.test_config['DB_URL'], echo=True)
 
 @pytest.fixture
-def api():
+@mock.patch("app.boto3")
+def api(mock_boto3):
+    mock_boto3.client.return_value = mock.Mock()
+    
     app = create_app(config.test_config)
     app.config['TEST'] = True
     api = app.test_client()
@@ -88,3 +93,28 @@ def test_tweet(api):
             {'user_id': 11, 'tweet': 'test tweet!'}
         ]
     }
+
+def test_save_and_get_profile_picture(api):
+    #로그인
+    resp = api.post(
+        '/login',
+        data = json.dumps({'email':'test@gmail.com', 'password':'test password'}),
+        content_type='application/json'
+    )
+    resp_json = json.loads(resp.data.decode('utf-8'))
+    access_token = resp_json['access_token']
+
+    # 이미지 파일 업로드
+    resp = api.post(
+        '/profile-picture',
+        content_type = 'multipart/form-data',
+        headers = {'Authorization': access_token},
+        data = {'profile_pic': (io.BytesIO(b'some imagge here'), 'profile.png')} # 실제 이미지 파일을 전송할 필요 없이 byte 데이터를 마치 이미지 파일을 전송하는 것처럼 전송할 수 있다.
+    )
+    assert resp.status_code == 200
+
+    # GET 이미지 URL
+    resp = api.get('/profile-picture/11')
+    data = json.loads(resp.data.decode('utf-8'))
+
+    assert data['img_url'] == f"{config.test_config['S3_BUCKET_URL']}profile.png"

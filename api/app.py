@@ -41,7 +41,7 @@ def create_app(test_config = None):
 
     # service
     services = Service
-    services.user_service = UserService(user_dao, config, s3_client)
+    services.user_service = UserService(user_dao, app.config, s3_client)
     services.tweet_service = TweetService(tweet_dao, config)
     app.database = database
 

@@ -32,7 +32,7 @@ class UserService:
             'exp': datetime.utcnow() + timedelta(seconds = 60 * 60 * 24)
         }
 
-        return jwt.encode(payload, self.config.JWT_SECRET_KEY, 'HS256')
+        return jwt.encode(payload, self.config["JWT_SECRET_KEY"], 'HS256')
     
     def follow(self, paylod):
         self.user_dao.insert_follow(paylod)
@@ -43,11 +43,11 @@ class UserService:
     def save_profile_picture(self, picture, filename, user_id):
         self.s3.upload_fileobj(
             picture,
-            self.config.S3_BUCKET,
+            self.config["S3_BUCKET"],
             filename
         )
 
-        image_url = f"{self.config.S3_BUCKET_URL}{filename}"
+        image_url = f"{self.config['S3_BUCKET_URL']}{filename}"
 
         return self.user_dao.save_profile_picture(image_url, user_id)
     
